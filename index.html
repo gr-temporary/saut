@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Saut</title>
+
+	<style type="text/css">
+		.wrapper {
+			width: 800px;
+			margin: 0 auto;
+		}
+	</style>
+</head>
+<body>
+
+<div class="wrapper">
+	<canvas id="main-canvas" width="800" height="400"></canvas>
+</div>
+
+<script type="text/javascript">
+	var canvas = document.getElementById('main-canvas');
+	var ctx = canvas.getContext('2d');
+
+	var g = 1.0;
+
+	var frameStack = 10;
+	var dt = 0.1;
+
+	function Platform (x, y, w, h) {
+		this.x = x;
+		this.y = y;
+		this.width = w;
+		this.height = h;
+
+		this.friction = 0.3;
+		this.mass = Infinity;
+	}
+
+	function Player(w, h) {
+		this.width = w || 16;
+		this.height = h || 16;
+
+		this.vx = 0;
+		this.vy = 0;
+		this.friction = 1.0;
+		this.mass = 5.0;
+
+		this.onGround = false;
+
+		this.jumpF = { x: 10, y: -30, e: -5.0 };
+		this.jumpMax = 80;// frames
+		this.jumpCooldown = 0;
+	}
+
+	Player.prototype.jump = function () {
+		if(this.onGround) {
+			this.y -= 1;
+			/*this.vy += this.jumpvy;
+			this.vx += this.jumpvx;*/
+			this.jumpCooldown = this.jumpMax;
+		}
+	}
+
+	Player.prototype.endJump = function () {
+		this.jumpCooldown = 0;
+	}
+
+	// a is repulsed
+	function intersectRect(a, b) {
+		if(a.x > b.x + b.width || a.x + a.width < b.x || a.y > b.y + b.height || a.y + a.height < b.y) {
+			return { hit: false, x: 0, y: 0 };
+		}
+		var l = b.x - (a.x + a.width);
+		var u = b.y - (a.y + a.height);
+		var r = b.x + b.width - a.x;
+		var d = b.y + b.height - a.y;
+		var data = { hit: true, x: 0, y: 0 };
+		if(Math.abs(l) > Math.abs(r))
+			l = r;
+		if(Math.abs(u) > Math.abs(d))
+			u = d;
+		if(Math.abs(l) > Math.abs(u))
+			data.y = u;
+		else
+			data.x = l;
+		return data;
+	}
+
+	var platforms = [
+		new Platform(0, 350, 800, 50)
+	];
+
+	var player = new Player();
+
+	player.x = 100;
+	player.y = 100;
+	player.vx = 2;
+
+	function step() {
+		var ax = 0;
+		var ay = g * player.mass;
+
+		player.onGround = false;
+
+		var hitData;
+		for(var i=0; i<platforms.length; i++) {
+			hitData = intersectRect(player, platforms[i]);
+			if(hitData.hit) {
+				player.x += hitData.x;
+				player.y += hitData.y;
+				if(-hitData.y > 1e-6) {
+					player.onGround = true;
+					player.vy = 0;
+					ax -= player.vx * platforms[i].friction;
+				}
+			}
+		}
+
+		if(player.jumpCooldown > 0) {
+			var c = player.jumpCooldown / player.jumpMax;
+			c = c * c * c;
+			ax += player.jumpF.x * c;
+			ay += player.jumpF.y * c;
+			player.jumpCooldown --;
+		}
+
+		player.vx += ax * dt / player.mass;
+		player.vy += ay * dt / player.mass;
+
+		player.x += player.vx * dt;
+		player.y += player.vy * dt;
+
+		if(player.x > 800) player.x = 0;
+		if(player.x < 0) player.x = 800;
+	}
+
+	function frame() {
+		ctx.fillStyle = '#fff';
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+		if(jumpFlag)
+			player.jump();
+		else
+			player.endJump();
+
+		for(var i=0; i<5; i++)
+			step();
+
+		ctx.fillStyle = '#000';
+		for(var i=0; i<platforms.length; i++) {
+			ctx.fillRect(platforms[i].x, platforms[i].y, platforms[i].width, platforms[i].height);
+		}
+
+		if(player.jumpCooldown > 0)
+			ctx.fillStyle = '#00f';
+		else
+			ctx.fillStyle = '#f00';
+		ctx.fillRect(player.x, player.y, player.width, player.height);
+
+		setTimeout(frame, 30);
+	}
+
+	var jumpFlag = false;
+
+	document.addEventListener('keydown', function() {
+		jumpFlag = true;
+	});
+
+	document.addEventListener('keyup', function() {
+		jumpFlag = false;
+	});
+
+	document.addEventListener('touchstart', function() {
+		jumpFlag = true;
+	});
+
+	document.addEventListener('touchend', function() {
+		jumpFlag = false;
+	});
+
+	frame();
+
+</script>
+
+</body>
+</html>
